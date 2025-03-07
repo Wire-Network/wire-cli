@@ -1,0 +1,6 @@
+node_modules/
+bin
+*.zip
+config.json
+lib
+coverage
