@@ -1,7 +1,7 @@
 {
-  "name": "wire-cli",
+  "name": "@wireio/wire-cli",
   "version": "0.0.1",
-  "description": "",
+  "description": "Wire CLI Utilities",
   "main": "lib/index.js",
   "bin": {
     "wire-cli": "lib/index.js"
@@ -13,7 +13,7 @@
     "watch": "tsc -w"
   },
   "keywords": [],
-  "author": "",
+  "author": "Svetla Syrimis",
   "license": "ISC",
   "dependencies": {
     "chalk": "^4.1.2",
@@ -37,5 +37,16 @@
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
-  }
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wire-Network/wire-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Wire-Network/wire-cli/issues"
+  },
+  "homepage": "https://github.com/Wire-Network/wire-cli#readme"
 }
