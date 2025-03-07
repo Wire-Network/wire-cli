@@ -12,17 +12,27 @@ import inquirer from 'inquirer';
  * @param cmd Full command to run (e.g., "apt-get")
  * @param args Array of args (e.g., ["install", "-y", "wget"])
  * @param errorMsg Error message to throw if something goes wrong
+ * @param cwd - The working directory in which to run the command. Defaults to the current directory (`process.cwd()`).
  */
-export function runOrError(cmd: string, args: string[], errorMsg: string) {
-  signale.log(`[RUN]: ${cmd} ${args.join(' ')}`);
+export function runOrError(cmd: string, args: string[], errorMsg: string, cwd = process.cwd()) {
+  signale.log(`in cwd - ${cwd} [RUN]: ${cmd} ${args.join(' ')}`);
   const result = childProcess.spawnSync(cmd, args, {
-    stdio: 'inherit', // pipe output directly to signale
-    shell: false,
+    stdio: 'inherit',  // Direct output to terminal
+    shell: false,      // Prevent shell interpretation of commands
+    cwd,              // Set the working directory
   });
 
-  if (result.status !== 0) {
-    throw new Error(errorMsg);
+  if (result.error) {
+    signale.error(`Command execution failed: ${result.error.message}`);
+    throw new Error(`${errorMsg}\n${result.error.message}`);
   }
+
+  if (result.status !== 0) {
+    signale.error(`Command failed with exit code ${result.status}`);
+    throw new Error(`${errorMsg} (exit code: ${result.status})`);
+  }
+
+  signale.success(`[SUCCESS]: ${cmd} executed successfully.`);
 }
 
 
@@ -61,7 +71,7 @@ export function logUsage(varName: string, value: string, defaultVal: string) {
   if (value === defaultVal) {
     signale.success(`Using default ${varName}: ${value}`);
   } else {
-    signale.pending(`}Overriding ${varName}: ${value}`);
+    signale.pending(`Overriding ${varName}: ${value}`);
   }
 }
 
@@ -112,4 +122,8 @@ export function hiddenPrompt(): Promise<string> {
         resolve(response.hiddenInput.trim());
         });
     });
+}
+
+export function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -10,7 +10,7 @@ module.exports = [
   {
     name: "my-config",
     files: ["**/*.ts", "**/*.js"],
-    ignores: ["dist/**/*", "eslint.config.js"],
+    ignores: ["lib/**/*", "eslint.config.js"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

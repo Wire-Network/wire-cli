@@ -27,10 +27,15 @@ const argv = yargs(hideBin(process.argv))
       describe:
         'Run wire-install in genesis mode. It spins up 1 blockproducer node, 1 chain API node, and deploys all system contracts.',
       type: 'boolean',
-      default: false,
+      default: undefined,
     }),
     async (argv) => {
       try {
+        if (argv.g === undefined) {
+          signale.error('Error: At least one option must be provided for the install command.');
+          signale.info('Use --help for more information.');
+          process.exit(1);
+        }
         await install({ genesis: !!argv.g });
       } catch (err) {
         signale.error(`Fatal error: ${(err as Error).message}`);

@@ -1,28 +1,30 @@
 {
   "name": "wire-cli",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
-  "main": "dist/index.js",
+  "main": "lib/index.js",
   "bin": {
-    "wire-cli": "dist/index.js"
+    "wire-cli": "lib/index.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsc && node dist/index.js",
-    "build": "tsc"
+    "start": "tsc && node bin/index.js",
+    "build": "tsc",
+    "watch": "tsc -w"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "chalk": "^5.4.1",
+    "chalk": "^4.1.2",
     "figlet": "^1.8.0",
-    "inquirer": "^12.4.2",
+    "inquirer": "^8.2.6",
     "signale": "^1.4.0",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@types/figlet": "^1.7.0",
+    "@types/inquirer": "^9.0.7",
     "@types/node": "^22.13.9",
     "@types/signale": "^1.4.7",
     "@types/yargs": "^17.0.33",
