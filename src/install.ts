@@ -1,24 +1,31 @@
-import * as childProcess from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as childProcess from "child_process";
+import * as fs from "fs";
+import * as path from "path";
 import signale from "signale";
-import { copyRecursiveSync, hiddenPrompt, isUrl, logUsage, runOrError, verifyRunningAsRoot, wait } from './helpers/utilities.helper';
-
-
+import {
+  copyRecursiveSync,
+  hiddenPrompt,
+  isUrl,
+  logUsage,
+  run,
+  verifyRunningAsRoot,
+  wait,
+  replaceInFile,
+  setContractUntilSuccess,
+  parseKeyFile,
+} from "./helpers/utilities.helper";
 
 interface InstallOptions {
   genesis: boolean;
+  enableRoa: boolean;
 }
 
-const SYMBOL="SYS"
-const SUPPLY="75496.0000"
-const BYTE_PER_UNIT="104"
-
-
-
+const SYMBOL = "SYS";
+const SUPPLY = "75496.0000";
+const BYTE_PER_UNIT = "104";
 
 export async function install(options: InstallOptions) {
-  const { genesis } = options;
+  const { genesis, enableRoa } = options;
 
   verifyRunningAsRoot();
 
@@ -48,8 +55,8 @@ export async function install(options: InstallOptions) {
   process.env.DEBIAN_FRONTEND = "noninteractive";
 
   try {
-    runOrError("apt-get", ["update"], "[ERROR]: Failed to apt-get update");
-    runOrError(
+    run("apt-get", ["update"], "[ERROR]: Failed to apt-get update");
+    run(
       "apt-get",
       [
         "install",
@@ -82,9 +89,15 @@ export async function install(options: InstallOptions) {
       fs.copyFileSync(source, destPath);
     } else if (isUrl(source)) {
       signale.warn(`[INFO]: Downloading ${label} from: ${source}`);
-      runOrError("wget", ["-O", destPath, source], `[ERROR]: Failed to download ${label}`);
+      run(
+        "wget",
+        ["-O", destPath, source],
+        `[ERROR]: Failed to download ${label}`
+      );
     } else {
-      throw new Error(`[ERROR]: Invalid ${label} package path or URL: ${source}`);
+      throw new Error(
+        `[ERROR]: Invalid ${label} package path or URL: ${source}`
+      );
     }
   }
 
@@ -98,8 +111,9 @@ export async function install(options: InstallOptions) {
 
   // apt-get install wire-core
   signale.log(`[INSTALL]: Installing Wire System Core...`);
+
   try {
-    runOrError(
+    run(
       "apt-get",
       ["install", "-y", "--no-upgrade", WIRE_CORE_DEB],
       "[ERROR]: Failed to install Wire System Core"
@@ -117,8 +131,9 @@ export async function install(options: InstallOptions) {
 
   // Install CDT
   signale.log(`[INSTALL]: Starting Wire Network Genesis Setup...`);
+
   try {
-    runOrError(
+    run(
       "apt-get",
       ["install", "-y", "--no-upgrade", WIRE_CDT_DEB],
       "[ERROR]: Failed to install Wire CDT"
@@ -132,7 +147,10 @@ export async function install(options: InstallOptions) {
   const SYSTEM_CONTRACTS_PATH = "/opt/wire-system-contracts";
 
   if (fs.existsSync(SYSTEM_CONTRACTS_URL)) {
-    signale.warn(`[INFO]: Using local system contracts directory: ${SYSTEM_CONTRACTS_URL}`);
+    signale.warn(
+      `[INFO]: Using local system contracts directory: ${SYSTEM_CONTRACTS_URL}`
+    );
+
     try {
       fs.mkdirSync(SYSTEM_CONTRACTS_PATH, { recursive: true });
       copyRecursiveSync(SYSTEM_CONTRACTS_URL, SYSTEM_CONTRACTS_PATH);
@@ -141,9 +159,12 @@ export async function install(options: InstallOptions) {
       process.exit(1);
     }
   } else if (isUrl(SYSTEM_CONTRACTS_URL)) {
-    signale.warn(`[INFO]: Cloning system contracts from: ${SYSTEM_CONTRACTS_URL}`);
+    signale.warn(
+      `[INFO]: Cloning system contracts from: ${SYSTEM_CONTRACTS_URL}`
+    );
+
     try {
-      runOrError(
+      run(
         "git",
         [
           "clone",
@@ -160,24 +181,28 @@ export async function install(options: InstallOptions) {
       process.exit(1);
     }
   } else {
-    signale.error(`[ERROR]: Invalid System Contracts path or URL: ${SYSTEM_CONTRACTS_URL}`);
+    signale.error(
+      `[ERROR]: Invalid System Contracts path or URL: ${SYSTEM_CONTRACTS_URL}`
+    );
     process.exit(1);
   }
 
   try {
     const buildPath = path.join(SYSTEM_CONTRACTS_PATH, "build");
+
     if (fs.existsSync(buildPath)) {
       fs.rmSync(buildPath, { recursive: true, force: true });
     }
+
     fs.mkdirSync(buildPath);
 
-    runOrError(
+    run(
       "cmake",
       ["-DCMAKE_BUILD_TYPE=Release", ".."],
       "[ERROR]: Failed to configure system contracts",
       buildPath
     );
-    runOrError(
+    run(
       "make",
       ["-j", "2"],
       "[ERROR]: Failed to compile system contracts",
@@ -210,21 +235,31 @@ export async function install(options: InstallOptions) {
   );
 
   // Create data directories
-  fs.mkdirSync(path.join(WORK_DIR, "blockproducer", "data"), { recursive: true });
+  fs.mkdirSync(path.join(WORK_DIR, "blockproducer", "data"), {
+    recursive: true,
+  });
   fs.mkdirSync(path.join(WORK_DIR, "chain-api", "data"), { recursive: true });
-  fs.mkdirSync(path.join(WORK_DIR, "chain-api", "data", "traces"), { recursive: true });
+  fs.mkdirSync(path.join(WORK_DIR, "chain-api", "data", "traces"), {
+    recursive: true,
+  });
 
   signale.log(`[Install]: Generating key pairs...`);
   let passOutput = "";
 
   // 1) Create new wallet & parse the password
   try {
-    const result = childProcess.spawnSync("clio", ["wallet", "create", "--to-console"], {
-      encoding: "utf8",
-    });
+    const result = childProcess.spawnSync(
+      "clio",
+      ["wallet", "create", "--to-console"],
+      {
+        encoding: "utf8",
+      }
+    );
+
     if (result.status !== 0) {
       throw new Error(`[ERROR]: Failed to create wallet: ${result.stderr}`);
     }
+
     passOutput = result.stdout;
   } catch (err) {
     signale.error(err);
@@ -234,8 +269,8 @@ export async function install(options: InstallOptions) {
   // Grab last non-empty line => wallet password
   const passLine = passOutput
     .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0)
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
     .pop()!;
   const walletPassword = passLine.replace(/"/g, "");
 
@@ -255,7 +290,7 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
 
   // Unlock it
   try {
-    runOrError(
+    run(
       "bash",
       [path.join(WORK_DIR, "unlock_wallet.sh")],
       "[ERROR]: Failed to unlock wallet"
@@ -271,21 +306,26 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   );
 
   const typedKey = await hiddenPrompt();
+
   if (!typedKey) {
     signale.log(`[Install]: Generating new key pair...`);
+
     try {
       const result = childProcess.spawnSync(
         "clio",
         ["create", "key", "--file", SYSIO_KEY_FILE],
         { encoding: "utf8" }
       );
+
       if (result.status !== 0) {
-        throw new Error(`[ERROR]: Failed to generate key pair: ${result.stderr}`);
+        throw new Error(
+          `[ERROR]: Failed to generate key pair: ${result.stderr}`
+        );
       }
 
       // import into wallet
       const { privateKey: pvt, publicKey: pub } = parseKeyFile(SYSIO_KEY_FILE);
-      runOrError(
+      run(
         "clio",
         ["wallet", "import", "--private-key", pvt],
         "[ERROR]: Failed to import newly generated private key"
@@ -297,8 +337,9 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
     }
   } else {
     signale.log(`[Install]: Using provided private key...`);
+
     try {
-      runOrError(
+      run(
         "clio",
         ["wallet", "import", "--private-key", typedKey],
         "[ERROR]: Failed to import user-provided private key"
@@ -310,25 +351,35 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   }
 
   // Final check: ensure sysio_key.txt isn't empty
-  if (!fs.existsSync(SYSIO_KEY_FILE) || fs.statSync(SYSIO_KEY_FILE).size === 0) {
+  if (
+    !fs.existsSync(SYSIO_KEY_FILE) ||
+    fs.statSync(SYSIO_KEY_FILE).size === 0
+  ) {
     throw new Error(`No key data in ${SYSIO_KEY_FILE}. Aborting.`);
   }
 
-  console.log("[Install]: sysio_key.txt is ready with both private & public keys.");
-  console.log("[Install]: Keys have been added to the wallet. Continuing setup...");
+  console.log(
+    "[Install]: sysio_key.txt is ready with both private & public keys."
+  );
+  console.log(
+    "[Install]: Keys have been added to the wallet. Continuing setup..."
+  );
 
   // Parse them again
-  const { privateKey: sysioPrivateKey, publicKey: sysioPublicKey } = parseKeyFile(
-    SYSIO_KEY_FILE
-  );
+  const { privateKey: sysioPrivateKey, publicKey: sysioPublicKey } =
+    parseKeyFile(SYSIO_KEY_FILE);
   console.log(`DEBUG: [${sysioPrivateKey}]`);
   console.log(`DEBUG: [${sysioPublicKey}]`);
 
   // 3) Get server IP
-  const ipResult = childProcess.spawnSync("hostname", ["-I"], { encoding: "utf8" });
+  const ipResult = childProcess.spawnSync("hostname", ["-I"], {
+    encoding: "utf8",
+  });
+
   if (ipResult.status !== 0) {
     throw new Error("Unable to retrieve server IP via `hostname -I`");
   }
+
   const SERVER_IP = ipResult.stdout.trim().split(" ")[0];
   console.log(`[Install]: Detected server IP: ${SERVER_IP}`);
 
@@ -348,7 +399,13 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
     [/<SIGNING_PUB_KEY>/g, sysioPublicKey],
   ]);
 
-  const genesisPath = path.join(WORK_DIR, "blockproducer", "config", "genesis.json");
+  const genesisPath = path.join(
+    WORK_DIR,
+    "blockproducer",
+    "config",
+    "genesis.json"
+  );
+
   if (fs.existsSync(genesisPath)) {
     let genesisData = fs.readFileSync(genesisPath, "utf8");
     const init_time = new Date().toISOString().replace(/\.\d{3}Z$/, ".000");
@@ -474,24 +531,34 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   }
 
   console.log("[Install]: Deploying sysio.token contract...");
-  runOrError(
+  run(
     "clio",
-    ["set", "contract", "sysio.token", `${SYSTEM_CONTRACTS_PATH}/build/contracts/sysio.token/`],
+    [
+      "set",
+      "contract",
+      "sysio.token",
+      `${SYSTEM_CONTRACTS_PATH}/build/contracts/sysio.token/`,
+    ],
     "Failed to deploy sysio.token"
   );
   await wait(2000);
 
   console.log("[Install]: Deploying sysio.msig contract...");
-  runOrError(
+  run(
     "clio",
-    ["set", "contract", "sysio.msig", `${SYSTEM_CONTRACTS_PATH}/build/contracts/sysio.msig/`],
+    [
+      "set",
+      "contract",
+      "sysio.msig",
+      `${SYSTEM_CONTRACTS_PATH}/build/contracts/sysio.msig/`,
+    ],
     "Failed to deploy sysio.msig"
   );
   await wait(2000);
 
   console.log(`[Install]: Token symbol set to ${SYMBOL}`);
 
-  runOrError(
+  run(
     "clio",
     [
       "push",
@@ -507,7 +574,7 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   await wait(2000);
 
   console.log("[Install]: Core Token created. Issuing supply...");
-  runOrError(
+  run(
     "clio",
     [
       "push",
@@ -523,7 +590,7 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   await wait(2000);
 
   console.log("[Install]: Activating PREACTIVATE_FEATURE...");
-  runOrError(
+  run(
     "curl",
     [
       "--request",
@@ -566,12 +633,13 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   ];
 
   for (const feat of featureHashes) {
-    runOrError(
+    run(
       "clio",
       ["push", "action", "sysio", "activate", `["${feat}"]`, "-p", "sysio"],
       `Failed to activate feature: ${feat}`
     );
   }
+
   await wait(4000);
 
   // set sysio.system
@@ -582,39 +650,68 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   await wait(2000);
 
   console.log("[Install]: Setting Msig to privileged...");
-  runOrError(
+  run(
     "clio",
-    ["push", "action", "sysio", "setpriv", '["sysio.msig", 1]', "-p", "sysio@active"],
+    [
+      "push",
+      "action",
+      "sysio",
+      "setpriv",
+      '["sysio.msig", 1]',
+      "-p",
+      "sysio@active",
+    ],
     "Failed to setpriv sysio.msig"
   );
   await wait(3000);
 
   console.log("[Install]: Setting ROA to privileged...");
-  runOrError(
+  run(
     "clio",
-    ["push", "action", "sysio", "setpriv", '["sysio.roa", 1]', "-p", "sysio@active"],
+    [
+      "push",
+      "action",
+      "sysio",
+      "setpriv",
+      '["sysio.roa", 1]',
+      "-p",
+      "sysio@active",
+    ],
     "Failed to setpriv sysio.roa"
   );
   await wait(3000);
 
   console.log("[Install]: Deploying sysio.roa contract...");
-  runOrError(
+  run(
     "clio",
-    ["set", "contract", "sysio.roa", `${SYSTEM_CONTRACTS_PATH}/build/contracts/sysio.roa/`],
+    [
+      "set",
+      "contract",
+      "sysio.roa",
+      `${SYSTEM_CONTRACTS_PATH}/build/contracts/sysio.roa/`,
+    ],
     "Failed to deploy sysio.roa"
   );
   await wait(2000);
 
   console.log("[Install]: Initializing system contract...");
-  runOrError(
+  run(
     "clio",
-    ["push", "action", "sysio", "init", `["0", "4,${SYMBOL}"]`, "-p", "sysio@active"],
+    [
+      "push",
+      "action",
+      "sysio",
+      "init",
+      `["0", "4,${SYMBOL}"]`,
+      "-p",
+      "sysio@active",
+    ],
     "Failed to init sysio system contract"
   );
   await wait(2000);
 
   console.log("[Install]: Initializing ROA contract...");
-  runOrError(
+  run(
     "clio",
     [
       "push",
@@ -628,79 +725,21 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
     "Failed to activateroa"
   );
 
-  console.log("[Install]: Genesis chain setup complete!");
-  signale.log(`[INSTALL]: Genesis setup complete!`);
-}
+  if (enableRoa) {
+    signale.log(
+      "[INSTALL]: Detected --enable-roa flag. Beginning ROA setup..."
+    );
 
-
-/** 
- * Helper: Parse a key file that has lines like:
- */
-function parseKeyFile(filePath: string) {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Key file does not exist: ${filePath}`);
-  }
-
-  const content = fs.readFileSync(filePath, "utf8");
-  const lines = content.split("\n");
-
-  let privateKey = "";
-  let publicKey = "";
-
-  for (const line of lines) {
-    if (line.startsWith("Private key:")) {
-      privateKey = line.replace("Private key:", "").trim();
-    } else if (line.startsWith("Public key:")) {
-      publicKey = line.replace("Public key:", "").trim();
+    try {
+      // add a function call or inline code for the ROA actions
+      await doRoaSetup();
+    } catch (err) {
+      signale.error("[INSTALL]: ROA setup failed:", err);
+      process.exit(1);
     }
   }
 
-  return { privateKey, publicKey };
-}
-
-/**
- * Helper: Replace placeholders in a file, similar to `sed -i`.
- * Each entry in `replacements` is [REGEX_TO_FIND, REPLACEMENT_STRING].
- */
-function replaceInFile(filePath: string, replacements: [RegExp, string][]) {
-  if (!fs.existsSync(filePath)) return;
-
-  let data = fs.readFileSync(filePath, "utf8");
-  for (const [pattern, replacement] of replacements) {
-    data = data.replace(pattern, replacement);
-  }
-  fs.writeFileSync(filePath, data, { encoding: "utf8" });
-}
-
-/**
- * Helper: Loop until a "clio set contract" call succeeds, 
- * replicating your shell "while !success ... do".
- */
-async function setContractUntilSuccess(
-  contractDir: string,
-  contractName: string
-) {
-  let success = false;
-  while (!success) {
-    console.log(`[Install]: Setting ${contractName} contract...`);
-    const r = childProcess.spawnSync("clio", [
-      "set",
-      "contract",
-      "sysio",
-      contractDir,
-      "-p",
-      "sysio",
-      "-x",
-      "1000",
-    ]);
-
-    if (r.status === 0) {
-      success = true;
-    } else {
-      console.log("[Install]: Failed, trying again...");
-      await wait(2000);
-    }
-  }
+  signale.info("[Install]: Genesis chain setup complete!");
 }
 
 /**
@@ -712,7 +751,7 @@ async function setContractUntilSuccess(
 function createSystemAccount(account: string, secretsDir: string) {
   const keyFile = path.join(secretsDir, `${account}_key.txt`);
 
-  runOrError(
+  run(
     "clio",
     ["create", "key", "--file", keyFile],
     `Failed to create key for ${account}`
@@ -720,17 +759,54 @@ function createSystemAccount(account: string, secretsDir: string) {
 
   const { privateKey, publicKey } = parseKeyFile(keyFile);
 
-  runOrError(
+  run(
     "clio",
     ["wallet", "import", "--private-key", privateKey],
     `Failed to import private key for ${account}`
   );
 
-  runOrError(
+  run(
     "clio",
     ["create", "account", "sysio", account, publicKey],
     `Failed to create account ${account}`
   );
 
   console.log(`[Install]: ${account} created successfully...`);
+}
+
+async function doRoaSetup() {
+  signale.log("[ROA]: Activating ROA...");
+
+  const account = "nodedaddy";
+
+  const pubDevKey = "SYS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV";
+  const privateDevKey = "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3";
+
+  run(
+    "clio",
+    ["create", "account", "sysio", `${account}`, pubDevKey],
+    `Failed to create account ${account}`
+  );
+
+  run(
+    "clio",
+    ["wallet", "import", "--private-key", privateDevKey],
+    "[ERROR]: Failed to import nodedaddy privateKey"
+  );
+  // regnodeowner
+  run(
+    "clio",
+    [
+      "push",
+      "action",
+      "sysio.roa",
+      "regnodeowner",
+      '{"owner": "nodedaddy", "tier": 1}',
+      "-p",
+      "sysio.roa@active",
+    ],
+    "Failed to register node owner"
+  );
+
+  signale.log("[ROA]: All ROA steps completed successfully!");
 }

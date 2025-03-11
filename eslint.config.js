@@ -8,7 +8,6 @@ const prettierPlugin = require("eslint-plugin-prettier");
  */
 module.exports = [
   {
-    name: "my-config",
     files: ["**/*.ts", "**/*.js"],
     ignores: ["lib/**/*", "eslint.config.js"],
     languageOptions: {
@@ -28,6 +27,7 @@ module.exports = [
       prettier: prettierPlugin,
     },
     rules: {
+      "prettier/prettier": "error",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",

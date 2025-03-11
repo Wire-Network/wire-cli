@@ -14,7 +14,7 @@
 ## Installation
 
 ```sh
-npm i @wireio/wire-cli
+npm i -g @wireio/wire-cli
 ```
 
 ## Development
@@ -40,7 +40,8 @@ npm link
 > [!NOTE]: By default, `sudo` resets environment variables, causing `wire-cli` and Node.js binaries to be unavailable. In order to run the script as root you need to use  
 > `visudo` to preserve environment variables (`PATH`, `NVM_DIR`, `NODE_PATH`) so that sudo can access `wire-cli` and the correct Node.js version.
 
-Get NODE_PATH
+Get NODE_PATH:
+
 ```sh 
 which node 
 ```
@@ -65,7 +66,7 @@ Defaults        secure_path = /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:
 Once linked, you can run `wire-cli` from your terminal.
 
 ```sh 
-sudo wire-cli install --g
+sudo wire-cli install --g --enable-roa
 ```
 
 [LICENSE](./LICENSE.md)
