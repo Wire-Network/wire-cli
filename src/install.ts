@@ -18,6 +18,7 @@ import {
 interface InstallOptions {
   genesis: boolean;
   enableRoa: boolean;
+  disableAutoGenerateKey: boolean
 }
 
 const SYMBOL = "SYS";
@@ -25,7 +26,7 @@ const SUPPLY = "75496.0000";
 const BYTE_PER_UNIT = "104";
 
 export async function install(options: InstallOptions) {
-  const { genesis, enableRoa } = options;
+  const { genesis, enableRoa,disableAutoGenerateKey  } = options;
 
   verifyRunningAsRoot();
 
@@ -300,12 +301,18 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
     process.exit(1);
   }
 
-  // 2) Prompt user for private key or generate new
-  signale.pending(
-    `[Install]: Press Enter to generate a new key, OR type an existing private key (input hidden):`
-  );
+  const autoGenerateKey = !disableAutoGenerateKey;
 
-  const typedKey = await hiddenPrompt();
+  // 2) Prompt user for private key or generate new
+  if (autoGenerateKey) {
+    signale.log(`[Install]: Auto-generating key pair without user prompt...`);
+  } else {
+    signale.pending(
+      `[Install]: Press Enter to generate a new key, OR type an existing private key (input hidden):`
+    );
+  }
+  
+  const typedKey = autoGenerateKey ? "" : await hiddenPrompt();
 
   if (!typedKey) {
     signale.log(`[Install]: Generating new key pair...`);
