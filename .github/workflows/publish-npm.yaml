@@ -68,7 +68,7 @@ jobs:
           if [ -z "$NODE_AUTH_TOKEN" ]; then echo "NPM token is not set."; exit 1; fi
           if [ -z "$WEBHOOK_URL" ]; then echo "WEBHOOK_URL is not set."; exit 1; fi
           
-          npm publish --access restricted --non-interactive
+          npm publish --access public --non-interactive
           
           PACKAGE_NAME=$(node -p "require('./package.json').name")
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
