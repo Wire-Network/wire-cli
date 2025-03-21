@@ -443,25 +443,18 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   }
 
   // 5) Start blockproducer
-  console.log("[Install]: Starting blockproducer nodeop instance...");
+  signale.log("[Install]: Starting blockproducer nodeop instance...");
 
   const bpLogPath = path.join(WORK_DIR, "blockproducer", "data", "nodeop.log");
-  const bpPidPath = path.join(
-    WORK_DIR,
-    "blockproducer",
-    "config",
-    "nodeop.pid"
-  );
+  fs.mkdirSync(path.dirname(bpLogPath), { recursive: true });
 
-  if (!fs.existsSync(path.dirname(bpLogPath))) {
-    fs.mkdirSync(path.dirname(bpLogPath), { recursive: true });
+  let bpLogFd: number | undefined;
+
+  try {
+    bpLogFd = fs.openSync(bpLogPath, "a");
+  } catch (err) {
+    signale.error("Failed to open blockproducer log file:", err);
   }
-
-  if (!fs.existsSync(path.dirname(bpPidPath))) {
-    fs.mkdirSync(path.dirname(bpPidPath), { recursive: true });
-  }
-
-  const bpLog = fs.openSync(bpLogPath, "a");
 
   const bpProc = childProcess.spawn(
     "nodeop",
@@ -486,42 +479,69 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
     ],
     {
       detached: true,
-      stdio: ["ignore", "ignore", bpLog],
+      stdio: ["ignore", "pipe", "pipe"],
     }
   );
 
-  await wait(5000);
-
-  if (typeof bpProc.pid === "number") {
-    process.kill(bpProc.pid, 0);
-    fs.writeFileSync(bpPidPath, String(bpProc.pid), { encoding: "utf8" });
-    bpProc.unref();
-  } else {
-    throw new Error(
-      `[ERROR]: blockproducer process did not return a valid PID`
-    );
+  // Mirror stdout to console and file
+  if (bpProc.stdout) {
+    bpProc.stdout.on("data", data => {
+      const text = data.toString();
+      process.stdout.write(`[blockproducer stdout] ${text}`);
+      if (bpLogFd) fs.writeSync(bpLogFd, `[stdout] ${text}`);
+    });
   }
 
-  console.log("[Install]: Starting chain-api nodeop instance...");
-  await wait(5000);
+  // Mirror stderr to console and file
+  if (bpProc.stderr) {
+    bpProc.stderr.on("data", data => {
+      const text = data.toString();
+      process.stderr.write(`[blockproducer stderr] ${text}`);
+      if (bpLogFd) fs.writeSync(bpLogFd, `[stderr] ${text}`);
+    });
+  }
 
-  const chainApiPath = path.join(WORK_DIR, "chain-api", "data", "nodeop.log");
-  const chainApiPidPath = path.join(
+  // Handle exit event
+  bpProc.on("exit", (code, signal) => {
+    signale.error(`blockproducer exited with code=${code}, signal=${signal}`);
+
+    if (bpLogFd !== undefined) {
+      fs.closeSync(bpLogFd);
+    }
+  });
+
+  // Write the PID to file
+  const bpPidPath = path.join(
     WORK_DIR,
-    "chain-api",
+    "blockproducer",
     "config",
     "nodeop.pid"
   );
+  fs.writeFileSync(bpPidPath, String(bpProc.pid), { encoding: "utf8" });
 
-  if (!fs.existsSync(path.dirname(chainApiPath))) {
-    fs.mkdirSync(path.dirname(chainApiPath), { recursive: true });
+  // Detach from parent
+  bpProc.unref();
+
+  signale.success(`[Install]: blockproducer started with PID ${bpProc.pid}`);
+  await wait(5000);
+
+  signale.log("[Install]: Starting chain-api nodeop instance...");
+
+  const chainApiLogPath = path.join(
+    WORK_DIR,
+    "chain-api",
+    "data",
+    "nodeop.log"
+  );
+  fs.mkdirSync(path.dirname(chainApiLogPath), { recursive: true });
+
+  let chainApiLogFd: number | undefined;
+
+  try {
+    chainApiLogFd = fs.openSync(chainApiLogPath, "a");
+  } catch (err) {
+    signale.error("Failed to open chain-api log file:", err);
   }
-
-  if (!fs.existsSync(path.dirname(chainApiPidPath))) {
-    fs.mkdirSync(path.dirname(chainApiPidPath), { recursive: true });
-  }
-
-  const apiLog = fs.openSync(chainApiPath, "a");
 
   const chainApiProc = childProcess.spawn(
     "nodeop",
@@ -539,22 +559,48 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
     ],
     {
       detached: true,
-      stdio: ["ignore", "ignore", apiLog],
+      stdio: ["ignore", "pipe", "pipe"],
     }
   );
 
-  await wait(5000);
-
-  if (typeof chainApiProc.pid === "number") {
-    process.kill(chainApiProc.pid, 0);
-    fs.writeFileSync(chainApiPidPath, String(chainApiProc.pid), {
-      encoding: "utf8",
+  if (chainApiProc.stdout) {
+    chainApiProc.stdout.on("data", data => {
+      const text = data.toString();
+      process.stdout.write(`[chain-api stdout] ${text}`);
+      if (chainApiLogFd) fs.writeSync(chainApiLogFd, `[stdout] ${text}`);
     });
-    chainApiProc.unref();
-  } else {
-    throw new Error(`[ERROR]: chain-api process did not return a valid PID`);
   }
 
+  if (chainApiProc.stderr) {
+    chainApiProc.stderr.on("data", data => {
+      const text = data.toString();
+      process.stderr.write(`[chain-api stderr] ${text}`);
+      if (chainApiLogFd) fs.writeSync(chainApiLogFd, `[stderr] ${text}`);
+    });
+  }
+
+  chainApiProc.on("exit", (code, signal) => {
+    signale.error(`chain-api exited with code=${code}, signal=${signal}`);
+
+    if (chainApiLogFd !== undefined) {
+      fs.closeSync(chainApiLogFd);
+    }
+  });
+
+  const chainApiPidPath = path.join(
+    WORK_DIR,
+    "chain-api",
+    "config",
+    "nodeop.pid"
+  );
+  fs.writeFileSync(chainApiPidPath, String(chainApiProc.pid), {
+    encoding: "utf8",
+  });
+
+  chainApiProc.unref();
+
+  signale.success(`[Install]: chain-api started with PID ${chainApiProc.pid}`);
+  await wait(10000);
   // Setup genesis chain (accounts, tokens, etc.)
   console.log("[Install]: Starting genesis chain setup...");
 
