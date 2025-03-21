@@ -14,10 +14,16 @@ console.log(
     })
   )
 );
+
 const argv = yargs(hideBin(process.argv))
   .scriptName("wire-cli")
   .usage("$0 <cmd> [options]")
-  // Define the "install" command
+  .option("verbose", {
+    alias: "v",
+    type: "boolean",
+    describe: "Enable verbose logs",
+    default: false,
+  })
   .command(
     "install [options]",
     "Install Wire Network locally",
@@ -39,20 +45,29 @@ const argv = yargs(hideBin(process.argv))
         })
         .option("--no-generate-key", {
           type: "boolean",
-          describe: "Disable automatic generation of sysio.key (enabled by default) and instead take user input.",
+          describe:
+            "Disable automatic generation of sysio.key (enabled by default) and instead take user input.",
           default: false,
         }),
     async argv => {
-      try {
-        if (argv.g === undefined) {
-          signale.error(
-            "Error: At least one option must be provided for the install command."
-          );
-          signale.info("Use --help for more information.");
-          process.exit(1);
-        }
+      if (argv.g === undefined) {
+        signale.error(
+          "Error: At least one option must be provided for the install command."
+        );
+        signale.info("Use --help for more information.");
+        process.exit(1);
+      }
 
-        await install({ genesis: !!argv.g, enableRoa: !!argv.enableRoa, disableAutoGenerateKey: !!argv.NoGenerateKey});
+      if (!argv.verbose) {
+        signale.debug = () => {};
+      }
+
+      try {
+        await install({
+          genesis: !!argv.g,
+          enableRoa: !!argv.enableRoa,
+          disableAutoGenerateKey: !!argv.NoGenerateKey,
+        });
       } catch (err) {
         signale.error(`Fatal error: ${(err as Error).message}`);
         process.exit(1);
@@ -71,8 +86,11 @@ const argv = yargs(hideBin(process.argv))
       });
     },
     async argv => {
+      if (!argv.verbose) {
+        signale.debug = () => {};
+      }
+
       try {
-        // call your uninstall function
         await uninstall({ autoYes: !!argv.yes });
       } catch (err) {
         console.error("Uninstall failed:", err);

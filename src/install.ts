@@ -18,7 +18,7 @@ import {
 interface InstallOptions {
   genesis: boolean;
   enableRoa: boolean;
-  disableAutoGenerateKey: boolean
+  disableAutoGenerateKey: boolean;
 }
 
 const SYMBOL = "SYS";
@@ -26,7 +26,7 @@ const SUPPLY = "75496.0000";
 const BYTE_PER_UNIT = "104";
 
 export async function install(options: InstallOptions) {
-  const { genesis, enableRoa,disableAutoGenerateKey  } = options;
+  const { genesis, enableRoa, disableAutoGenerateKey } = options;
 
   verifyRunningAsRoot();
 
@@ -311,7 +311,7 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
       `[Install]: Press Enter to generate a new key, OR type an existing private key (input hidden):`
     );
   }
-  
+
   const typedKey = autoGenerateKey ? "" : await hiddenPrompt();
 
   if (!typedKey) {
@@ -442,10 +442,25 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
 
   // 5) Start blockproducer
   console.log("[Install]: Starting blockproducer nodeop instance...");
-  const bpLog = fs.openSync(
-    path.join(WORK_DIR, "blockproducer", "data", "nodeop.log"),
-    "a"
+
+  const bpLogPath = path.join(WORK_DIR, "blockproducer", "data", "nodeop.log");
+  const bpPidPath = path.join(
+    WORK_DIR,
+    "blockproducer",
+    "config",
+    "nodeop.pid"
   );
+
+  if (!fs.existsSync(path.dirname(bpLogPath))) {
+    fs.mkdirSync(path.dirname(bpLogPath), { recursive: true });
+  }
+
+  if (!fs.existsSync(path.dirname(bpPidPath))) {
+    fs.mkdirSync(path.dirname(bpPidPath), { recursive: true });
+  }
+
+  const bpLog = fs.openSync(bpLogPath, "a");
+
   const bpProc = childProcess.spawn(
     "nodeop",
     [
@@ -472,22 +487,41 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
       stdio: ["ignore", "ignore", bpLog],
     }
   );
-  fs.writeFileSync(
-    path.join(WORK_DIR, "blockproducer", "config", "nodeop.pid"),
-    String(bpProc.pid),
-    { encoding: "utf8" }
-  );
-  bpProc.unref();
 
-  // Start chain-api
+  await wait(5000);
+
+  if (typeof bpProc.pid === "number") {
+    process.kill(bpProc.pid, 0);
+    fs.writeFileSync(bpPidPath, String(bpProc.pid), { encoding: "utf8" });
+    bpProc.unref();
+  } else {
+    throw new Error(
+      `[ERROR]: blockproducer process did not return a valid PID`
+    );
+  }
+
   console.log("[Install]: Starting chain-api nodeop instance...");
   await wait(5000);
 
-  const apiLog = fs.openSync(
-    path.join(WORK_DIR, "chain-api", "data", "nodeop.log"),
-    "a"
+  const chainApiPath = path.join(WORK_DIR, "chain-api", "data", "nodeop.log");
+  const chainApiPidPath = path.join(
+    WORK_DIR,
+    "chain-api",
+    "config",
+    "nodeop.pid"
   );
-  const apiProc = childProcess.spawn(
+
+  if (!fs.existsSync(path.dirname(chainApiPath))) {
+    fs.mkdirSync(path.dirname(chainApiPath), { recursive: true });
+  }
+
+  if (!fs.existsSync(path.dirname(chainApiPidPath))) {
+    fs.mkdirSync(path.dirname(chainApiPidPath), { recursive: true });
+  }
+
+  const apiLog = fs.openSync(chainApiPath, "a");
+
+  const chainApiProc = childProcess.spawn(
     "nodeop",
     [
       "--config-dir",
@@ -506,14 +540,18 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
       stdio: ["ignore", "ignore", apiLog],
     }
   );
-  fs.writeFileSync(
-    path.join(WORK_DIR, "chain-api", "config", "nodeop.pid"),
-    String(apiProc.pid),
-    { encoding: "utf8" }
-  );
-  apiProc.unref();
 
-  await wait(10000);
+  await wait(5000);
+
+  if (typeof chainApiProc.pid === "number") {
+    process.kill(chainApiProc.pid, 0);
+    fs.writeFileSync(chainApiPidPath, String(chainApiProc.pid), {
+      encoding: "utf8",
+    });
+    chainApiProc.unref();
+  } else {
+    throw new Error(`[ERROR]: chain-api process did not return a valid PID`);
+  }
 
   // Setup genesis chain (accounts, tokens, etc.)
   console.log("[Install]: Starting genesis chain setup...");
