@@ -445,6 +445,32 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   // 5) Start blockproducer
   signale.log("[Install]: Starting blockproducer nodeop instance...");
 
+  // Add directory existence checks
+  const configDir = path.join(WORK_DIR, "blockproducer", "config");
+  const dataDir = path.join(WORK_DIR, "blockproducer", "data");
+  const genesisJsonPath = path.join(configDir, "genesis.json");
+
+  // Check if directories exist
+  if (!fs.existsSync(configDir)) {
+    throw new Error(`Config directory does not exist: ${configDir}`);
+  }
+
+  if (!fs.existsSync(dataDir)) {
+    throw new Error(`Data directory does not exist: ${dataDir}`);
+  }
+
+  if (!fs.existsSync(genesisJsonPath)) {
+    throw new Error(`Genesis JSON file does not exist: ${genesisJsonPath}`);
+  }
+
+  // Log directory contents
+  signale.info(
+    `Config directory contents: ${fs.readdirSync(configDir).join(", ")}`
+  );
+  signale.info(
+    `Data directory contents: ${fs.readdirSync(dataDir).join(", ")}`
+  );
+
   const bpLogPath = path.join(WORK_DIR, "blockproducer", "data", "nodeop.log");
   fs.mkdirSync(path.dirname(bpLogPath), { recursive: true });
 
@@ -452,36 +478,49 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
 
   try {
     bpLogFd = fs.openSync(bpLogPath, "a");
+    signale.info(`Successfully opened log file: ${bpLogPath}`);
   } catch (err) {
-    signale.error("Failed to open blockproducer log file:", err);
+    signale.error(`Failed to open blockproducer log file: ${err}`);
+    throw err;
   }
 
-  const bpProc = childProcess.spawn(
-    "nodeop",
-    [
-      "-p",
-      "sysio",
-      "--config-dir",
-      `${WORK_DIR}/blockproducer/config`,
-      "--contracts-console",
-      "--data-dir",
-      `${WORK_DIR}/blockproducer/data`,
-      "--genesis-json",
-      `${WORK_DIR}/blockproducer/config/genesis.json`,
-      "--s-chain-contract",
-      "settle.wns",
-      "--s-chain-actions",
-      "batchw",
-      "--plugin",
-      "sysio::sub_chain_plugin",
-      "--signature-provider",
-      `${sysioPublicKey}=KEY:${sysioPrivateKey}`,
-    ],
-    {
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    }
-  );
+  // Log the full command that will be executed
+  const nodeopArgs = [
+    "-p",
+    "sysio",
+    "--config-dir",
+    configDir,
+    "--contracts-console",
+    "--data-dir",
+    dataDir,
+    "--genesis-json",
+    genesisJsonPath,
+    "--s-chain-contract",
+    "settle.wns",
+    "--s-chain-actions",
+    "batchw",
+    "--plugin",
+    "sysio::sub_chain_plugin",
+    "--signature-provider",
+    `${sysioPublicKey}=KEY:${sysioPrivateKey}`,
+  ];
+  signale.info(`Executing nodeop with args: ${nodeopArgs.join(" ")}`);
+
+  const bpProc = childProcess.spawn("nodeop", nodeopArgs, {
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      NODEOP_LOGGING_LEVEL: "debug", // Add debug logging
+    },
+  });
+
+  // Add error handler for spawn
+  bpProc.on("error", err => {
+    signale.error(`Failed to start nodeop process: ${err}`);
+    if (bpLogFd)
+      fs.writeSync(bpLogFd, `[ERROR] Failed to start process: ${err}\n`);
+  });
 
   // Mirror stdout to console and file
   if (bpProc.stdout) {
@@ -501,23 +540,30 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
     });
   }
 
-  // Handle exit event
+  // Handle exit event with more detailed logging
   bpProc.on("exit", (code, signal) => {
     signale.error(`blockproducer exited with code=${code}, signal=${signal}`);
 
-    if (bpLogFd !== undefined) {
+    if (bpLogFd) {
+      fs.writeSync(
+        bpLogFd,
+        `[ERROR] Process exited with code=${code}, signal=${signal}\n`
+      );
       fs.closeSync(bpLogFd);
     }
   });
 
-  // Write the PID to file
-  const bpPidPath = path.join(
-    WORK_DIR,
-    "blockproducer",
-    "config",
-    "nodeop.pid"
-  );
-  fs.writeFileSync(bpPidPath, String(bpProc.pid), { encoding: "utf8" });
+  // Write the PID to file with error handling
+  const bpPidPath = path.join(configDir, "nodeop.pid");
+
+  try {
+    fs.writeFileSync(bpPidPath, String(bpProc.pid), { encoding: "utf8" });
+    signale.info(`Successfully wrote PID ${bpProc.pid} to ${bpPidPath}`);
+  } catch (err) {
+    signale.error(`Failed to write PID file: ${err}`);
+    if (bpLogFd)
+      fs.writeSync(bpLogFd, `[ERROR] Failed to write PID file: ${err}\n`);
+  }
 
   // Detach from parent
   bpProc.unref();
@@ -527,41 +573,83 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
 
   signale.log("[Install]: Starting chain-api nodeop instance...");
 
-  const chainApiLogPath = path.join(
-    WORK_DIR,
-    "chain-api",
-    "data",
-    "nodeop.log"
+  // Add directory existence checks
+  const chainApiConfigDir = path.join(WORK_DIR, "chain-api", "config");
+  const chainApiDataDir = path.join(WORK_DIR, "chain-api", "data");
+  const chainApiTracesDir = path.join(chainApiDataDir, "traces");
+
+  // Check if directories exist
+  if (!fs.existsSync(chainApiConfigDir)) {
+    throw new Error(
+      `Chain API config directory does not exist: ${chainApiConfigDir}`
+    );
+  }
+
+  if (!fs.existsSync(chainApiDataDir)) {
+    throw new Error(
+      `Chain API data directory does not exist: ${chainApiDataDir}`
+    );
+  }
+
+  if (!fs.existsSync(chainApiTracesDir)) {
+    throw new Error(
+      `Chain API traces directory does not exist: ${chainApiTracesDir}`
+    );
+  }
+
+  // Log directory contents
+  signale.info(
+    `Chain API config directory contents: ${fs.readdirSync(chainApiConfigDir).join(", ")}`
   );
+  signale.info(
+    `Chain API data directory contents: ${fs.readdirSync(chainApiDataDir).join(", ")}`
+  );
+
+  const chainApiLogPath = path.join(chainApiDataDir, "nodeop.log");
   fs.mkdirSync(path.dirname(chainApiLogPath), { recursive: true });
 
   let chainApiLogFd: number | undefined;
 
   try {
     chainApiLogFd = fs.openSync(chainApiLogPath, "a");
+    signale.info(`Successfully opened chain-api log file: ${chainApiLogPath}`);
   } catch (err) {
-    signale.error("Failed to open chain-api log file:", err);
+    signale.error(`Failed to open chain-api log file: ${err}`);
+    throw err;
   }
 
-  const chainApiProc = childProcess.spawn(
-    "nodeop",
-    [
-      "--config-dir",
-      `${WORK_DIR}/chain-api/config`,
-      "--contracts-console",
-      "--data-dir",
-      `${WORK_DIR}/chain-api/data`,
-      "--trace-dir",
-      `${WORK_DIR}/chain-api/data/traces`,
-      "--genesis-json",
-      `${WORK_DIR}/blockproducer/config/genesis.json`,
-      "--disable-replay-opts",
-    ],
-    {
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    }
+  // Log the full command that will be executed
+  const chainApiArgs = [
+    "--config-dir",
+    chainApiConfigDir,
+    "--contracts-console",
+    "--data-dir",
+    chainApiDataDir,
+    "--trace-dir",
+    chainApiTracesDir,
+    "--genesis-json",
+    genesisJsonPath,
+    "--disable-replay-opts",
+  ];
+  signale.info(
+    `Executing chain-api nodeop with args: ${chainApiArgs.join(" ")}`
   );
+
+  const chainApiProc = childProcess.spawn("nodeop", chainApiArgs, {
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      NODEOP_LOGGING_LEVEL: "debug", // Add debug logging
+    },
+  });
+
+  // Add error handler for spawn
+  chainApiProc.on("error", err => {
+    signale.error(`Failed to start chain-api nodeop process: ${err}`);
+    if (chainApiLogFd)
+      fs.writeSync(chainApiLogFd, `[ERROR] Failed to start process: ${err}\n`);
+  });
 
   if (chainApiProc.stdout) {
     chainApiProc.stdout.on("data", data => {
@@ -579,23 +667,34 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
     });
   }
 
+  // Handle exit event with more detailed logging
   chainApiProc.on("exit", (code, signal) => {
     signale.error(`chain-api exited with code=${code}, signal=${signal}`);
 
-    if (chainApiLogFd !== undefined) {
+    if (chainApiLogFd) {
+      fs.writeSync(
+        chainApiLogFd,
+        `[ERROR] Process exited with code=${code}, signal=${signal}\n`
+      );
       fs.closeSync(chainApiLogFd);
     }
   });
 
-  const chainApiPidPath = path.join(
-    WORK_DIR,
-    "chain-api",
-    "config",
-    "nodeop.pid"
-  );
-  fs.writeFileSync(chainApiPidPath, String(chainApiProc.pid), {
-    encoding: "utf8",
-  });
+  // Write the PID to file with error handling
+  const chainApiPidPath = path.join(chainApiConfigDir, "nodeop.pid");
+
+  try {
+    fs.writeFileSync(chainApiPidPath, String(chainApiProc.pid), {
+      encoding: "utf8",
+    });
+    signale.info(
+      `Successfully wrote chain-api PID ${chainApiProc.pid} to ${chainApiPidPath}`
+    );
+  } catch (err) {
+    signale.error(`Failed to write chain-api PID file: ${err}`);
+    if (chainApiLogFd)
+      fs.writeSync(chainApiLogFd, `[ERROR] Failed to write PID file: ${err}\n`);
+  }
 
   chainApiProc.unref();
 
