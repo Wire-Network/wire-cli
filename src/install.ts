@@ -215,6 +215,8 @@ export async function install(options: InstallOptions) {
     process.exit(1);
   }
 
+  checkRequiredTools();
+
   // Manage chain directories, create wallet, etc.
   signale.log(`[INSTALL]: Managing Chain directories...`);
   const WORK_DIR = "/opt/wire-network";
@@ -785,6 +787,26 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   }
 
   signale.info("[Install]: Genesis chain setup complete!");
+}
+
+function checkRequiredTools() {
+  const tools = ["nodeop", "clio", "cdt-cpp"];
+  signale.info("Checking if required executables in path ....");
+
+  for (const tool of tools) {
+    const result = childProcess.spawnSync("which", [tool], {
+      encoding: "utf8",
+    });
+
+    if (result.status !== 0) {
+      signale.error(
+        `Missing required tool: ${tool}. Please install or add it to $PATH.`
+      );
+      process.exit(1);
+    }
+
+    signale.success(`${tool} found at: ${result.stdout.trim()}`);
+  }
 }
 
 /**
