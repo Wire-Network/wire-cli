@@ -6,9 +6,8 @@ import {
   confirmAction,
   run,
   verifyRunningAsRoot,
-} from "./helpers/utilities.helper"; // or custom logic
+} from "./helpers/utilities.helper"; 
 import { sign } from "crypto";
-// If you have your own "run" or "wait" function, import them
 
 interface UninstallOptions {
   autoYes: boolean;
