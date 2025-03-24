@@ -1,6 +1,6 @@
 {
   "name": "@wireio/wire-cli",
-  "version": "0.0.1-2",
+  "version": "0.0.1-7",
   "description": "Wire CLI Utilities",
   "main": "lib/index.js",
   "bin": {

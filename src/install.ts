@@ -18,7 +18,7 @@ import {
 interface InstallOptions {
   genesis: boolean;
   enableRoa: boolean;
-  disableAutoGenerateKey: boolean
+  disableAutoGenerateKey: boolean;
 }
 
 const SYMBOL = "SYS";
@@ -26,7 +26,7 @@ const SUPPLY = "75496.0000";
 const BYTE_PER_UNIT = "104";
 
 export async function install(options: InstallOptions) {
-  const { genesis, enableRoa,disableAutoGenerateKey  } = options;
+  const { genesis, enableRoa, disableAutoGenerateKey  } = options;
 
   verifyRunningAsRoot();
 
@@ -441,7 +441,20 @@ clio wallet unlock --password ${walletPassword} || echo "Wallet already unlocked
   }
 
   // 5) Start blockproducer
-  console.log("[Install]: Starting blockproducer nodeop instance...");
+  signale.log("[Install]: Starting blockproducer nodeop instance...");
+
+  // Check if blockproducer config directory exists
+  const blockproducerConfigDir = path.join(WORK_DIR, "blockproducer", "config");
+
+  signale.info(`DEBUG: Listing files in ${blockproducerConfigDir} ...`);
+    const lsResult = childProcess.spawnSync(
+      "ls",
+      ["-la", blockproducerConfigDir],
+      {
+        encoding: "utf8",
+      }
+    );
+    signale.info(lsResult.stdout);
   const bpLog = fs.openSync(
     path.join(WORK_DIR, "blockproducer", "data", "nodeop.log"),
     "a"
