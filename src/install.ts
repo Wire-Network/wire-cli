@@ -13,6 +13,7 @@ import {
   replaceInFile,
   setContractUntilSuccess,
   parseKeyFile,
+  activateFeatures,
 } from "./helpers/utilities.helper";
 
 interface InstallOptions {
@@ -500,6 +501,7 @@ export async function install(options: InstallOptions) {
   await wait(2000);
 
   console.log("[Install]: Activating Protocol Features...");
+
   const featureHashes = [
     "c3a6138c5061cf291310887c0b5c71fcaffeab90d5deb50d3b9e687cead45071",
     "d528b9f6e9693f45ed277af93474fd473ce7d831dae2180cca35d907bd10cb40",
@@ -511,22 +513,35 @@ export async function install(options: InstallOptions) {
     "68dcaa34c0517d19666e6b33add67351d8c5f69e999ca1e37931bc410a297428",
     "e0fb64b1085cc5538970158d05a009c24e276fb94e1a0bf6a528b48fbc4ff526",
     "ef43112c6543b88db2283a2e077278c315ae2c84719a8b25f25cc88565fbea99",
-    "4a90c00d55454dc5b059055ca213579c6ea856967712a56017487886a4d4cc0f",
     "1a99a59d87e06e09ec5b028a9cbb7749b4a5ad8819004365d02dc4379a8b7241",
     "4e7bf348da00a945489b2a681749eb56f5de00b900014e137ddae39f48f69d67",
     "4fca8bd82bbd181e714e283f83e1b45d95ca5af40fb89ad3977b653c448f78c2",
     "299dcb6af692324b899b39f16d5a530a33062804e41f09dc97e9f156b4476707",
     "35c2186cc36f7bb4aeaf4487b36e57039ccf45a9136aa856a5d569ecca55ef2b",
     "5d47703100b35be53772d7caa1ef73e92397e0a876cc4c0af24a5f0353f199c9",
+    "7ab0d893e39c01d365ad7f66a2cb8fb02179135c5a0cf16c40645d972e47911d",
+    "2ce18707fa426ea351704ded644b679a87188967b1098cff60ab4a3f35da106e",
+    "6cefed65f1f6a04fc82e949b06c0df0e9f5370855353cd3b543e4b5d4ff3dabf",
+    "4a90c00d55454dc5b059055ca213579c6ea856967712a56017487886a4d4cc0f",
+    "71d53c85a760da4eaa6934b5a94eb93426713d2ff74d8fa598e245faa469e573",
   ];
 
-  for (const feat of featureHashes) {
-    run(
-      "clio",
-      ["push", "action", "sysio", "activate", `["${feat}"]`, "-p", "sysio"],
-      `Failed to activate feature: ${feat}`
-    );
+  try {
+    await activateFeatures(featureHashes);
+  } catch (error) {
+    signale.error("[INSTALL]: Failed to activate protocol features:", error);
+    process.exit(1);
   }
+
+  // for (const feat of featureHashes) {
+  //   run(
+  //     "clio",
+  //     ["push", "action", "sysio", "activate", `["${feat}"]`, "-p", "sysio"],
+  //     `Failed to activate feature: ${feat}`
+  //   );
+
+  //   wait(2000);
+  // }
 
   await wait(4000);
 
@@ -613,6 +628,8 @@ export async function install(options: InstallOptions) {
     "Failed to activateroa"
   );
 
+  await wait(2000);
+
   if (enableRoa) {
     signale.log(
       "[INSTALL]: Detected --enable-roa flag. Beginning ROA setup..."
@@ -688,8 +705,8 @@ async function doRoaSetup() {
       "push",
       "action",
       "sysio.roa",
-      "regnodeowner",
-      '{"owner": "nodedaddy", "tier": 1}',
+      "forcereg",
+      JSON.stringify({ owner: "nodedaddy", tier: 1 }),
       "-p",
       "sysio.roa@active",
     ],

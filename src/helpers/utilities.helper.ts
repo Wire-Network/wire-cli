@@ -130,6 +130,20 @@ export function wait(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export async function activateFeatures(featureHashes: string[]) {
+  for (const feat of featureHashes) {
+    // This blocks until the command finishes:
+    run(
+      "clio",
+      ["push", "action", "sysio", "activate", `["${feat}"]`, "-p", "sysio"],
+      `Failed to activate feature: ${feat}`
+    );
+
+    // Now actually pause:
+    await wait(2000);
+  }
+}
+
 /**
  * Helper: Parse a key file that has lines like:
  */
