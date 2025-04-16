@@ -31,8 +31,9 @@ export async function install(options: InstallOptions) {
   verifyRunningAsRoot();
 
   const DEFAULT_SYSIO_PACKAGE_URL =
-    "https://github.com/Wire-Network/wire-sysio/releases/download/v3.1.7/wire-sysio_3.1.7.deb";
-  const DEFAULT_CDT_URL = "https://bucket.gitgo.app/wire-cdt_3.1.0-1_amd64.deb";
+    "https://github.com/Wire-Network/wire-sysio/releases/download/v5.1.0-rc1/wire-sysio_5.1.0-ubuntu22.04_amd64.deb";
+  const DEFAULT_CDT_URL =
+    "https://github.com/Wire-Network/wire-cdt/releases/download/v4.0.1/cdt_4.0.1_amd64.deb";
   const DEFAULT_SYSTEM_CONTRACTS_URL =
     "https://github.com/Wire-Network/wire-system-contracts.git";
 
@@ -148,7 +149,7 @@ export async function install(options: InstallOptions) {
       [
         "clone",
         "--branch",
-        "testnet",
+        "leap-5",
         "--single-branch",
         SYSTEM_CONTRACTS_URL,
         SYSTEM_CONTRACTS_PATH,
