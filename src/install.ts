@@ -133,7 +133,7 @@ export async function install(options: InstallOptions) {
   );
 
   signale.log(`[INSTALL]: Handling System Contracts...`);
-  const SYSTEM_CONTRACTS_PATH = "/opt/wire-system-contracts";
+  const SYSTEM_CONTRACTS_PATH = process.env.WIRE_CLI_SYSTEM_CONTRACTS_DIR || "/opt/wire-system-contracts";
   fs.mkdirSync(SYSTEM_CONTRACTS_PATH, { recursive: true });
 
   if (fs.existsSync(SYSTEM_CONTRACTS_URL)) {
@@ -185,28 +185,49 @@ export async function install(options: InstallOptions) {
   );
   signale.log(`[INSTALL]: System contracts compiled successfully!`);
 
-  const WORK_DIR = "/opt/wire-network";
+  const WORK_DIR = process.env.WIRE_CLI_WORK_DIR || "/opt/wire-network";
+
   fs.mkdirSync(WORK_DIR, { recursive: true });
   const SECRETS_DIR = path.join(WORK_DIR, "secrets");
-  const SYSIO_KEY_FILE = path.join(SECRETS_DIR, "sysio_key.txt");
   fs.mkdirSync(SECRETS_DIR, { recursive: true });
+  const SYSIO_KEY_FILE = path.join(SECRETS_DIR, "sysio_key.txt");
 
-  const PROJECT_DIR = process.cwd();
-  copyRecursiveSync(
-    path.join(PROJECT_DIR, "blockproducer"),
-    path.join(WORK_DIR, "blockproducer")
-  );
-  copyRecursiveSync(
-    path.join(PROJECT_DIR, "chain-api"),
-    path.join(WORK_DIR, "chain-api")
-  );
+  const PKG_ROOT = path.resolve(__dirname, "..");
 
-  fs.mkdirSync(path.join(WORK_DIR, "blockproducer", "data"), {
-    recursive: true,
-  });
-  fs.mkdirSync(path.join(WORK_DIR, "chain-api", "data", "traces"), {
-    recursive: true,
-  });
+  const TEMPLATE_BP = path.join(PKG_ROOT, "blockproducer");
+  const TEMPLATE_API = path.join(PKG_ROOT, "chain-api");
+
+  // Blockproducer
+  const dstBp = path.join(WORK_DIR, "blockproducer");
+  signale.debug(
+    `[DEBUG]: copying blockproducer from ${TEMPLATE_BP} to ${dstBp}`
+  );
+  copyRecursiveSync(TEMPLATE_BP, dstBp);
+
+  // List copied files for visibility
+  if (fs.existsSync(dstBp)) {
+    const walk = (dir: string, prefix = ""): void => {
+      for (const name of fs.readdirSync(dir)) {
+        const full = path.join(dir, name);
+        const stat = fs.statSync(full);
+        signale.debug(`${prefix}${name}${stat.isDirectory() ? "/" : ""}`);
+        if (stat.isDirectory()) walk(full, prefix + "  ");
+      }
+    };
+
+    walk(dstBp);
+  } else {
+    signale.error(`[DEBUG]: Destination ${dstBp} does not exist!`);
+  }
+
+  // Chain‑API
+  const dstApi = path.join(WORK_DIR, "chain-api");
+  signale.debug(`[DEBUG]: copying chain-api from ${TEMPLATE_API} to ${dstApi}`);
+  copyRecursiveSync(TEMPLATE_API, dstApi);
+
+  // 3) Ensure data directories
+  fs.mkdirSync(path.join(dstBp, "data"), { recursive: true });
+  fs.mkdirSync(path.join(dstApi, "data", "traces"), { recursive: true });
 
   signale.log(`[Install]: Generating key pairs...`);
   const result = childProcess.spawnSync(
@@ -299,6 +320,7 @@ export async function install(options: InstallOptions) {
     [/<SIGNING_PRIV_KEY>/g, sysioPrivateKey],
     [/<SIGNING_PUB_KEY>/g, sysioPublicKey],
   ]);
+
   const genesisPath = path.join(
     WORK_DIR,
     "blockproducer",
@@ -326,7 +348,12 @@ export async function install(options: InstallOptions) {
     fs.writeFileSync(genesisPath, genesisData, { encoding: "utf8" });
   }
 
-  const bpLog = fs.openSync(bpLogPath, "a");
+  // Start blockproducer
+  console.log("[Install]: Starting blockproducer nodeop instance...");
+  const bpLog = fs.openSync(
+    path.join(WORK_DIR, "blockproducer", "data", "nodeop.log"),
+    "a"
+  );
   const bpProc = childProcess.spawn(
     "nodeop",
     [
@@ -350,15 +377,18 @@ export async function install(options: InstallOptions) {
     ],
     { detached: true, stdio: ["ignore", "ignore", bpLog] }
   );
-
   bpProc.on("error", err => {
     signale.fatal(`[ERROR]: Failed to start blockproducer: ${err.message}`);
   });
 
-  fs.writeFileSync(
-    path.join(WORK_DIR, "blockproducer", "config", "nodeop.pid"),
-    String(bpProc.pid)
-  );
+  // **Ensure config directory exists before writing PID**
+  const bpConfigDir = path.join(WORK_DIR, "blockproducer", "config");
+  fs.mkdirSync(bpConfigDir, { recursive: true });
+
+  // Write the PID file
+  fs.writeFileSync(path.join(bpConfigDir, "nodeop.pid"), String(bpProc.pid), {
+    encoding: "utf8",
+  });
   bpProc.unref();
 
   // Start chain-api
@@ -698,7 +728,9 @@ async function doRoaSetup() {
     ["wallet", "import", "--private-key", privateDevKey],
     "[ERROR]: Failed to import nodedaddy privateKey"
   );
-  // regnodeowner
+
+  await wait(2000);
+  // forcereg
   run(
     "clio",
     [

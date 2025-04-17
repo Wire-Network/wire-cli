@@ -39,7 +39,8 @@ const argv = yargs(hideBin(process.argv))
         })
         .option("--no-generate-key", {
           type: "boolean",
-          describe: "Disable automatic generation of sysio.key (enabled by default) and instead take user input.",
+          describe:
+            "Disable automatic generation of sysio.key (enabled by default) and instead take user input.",
           default: false,
         }),
     async argv => {
@@ -52,7 +53,11 @@ const argv = yargs(hideBin(process.argv))
           process.exit(1);
         }
 
-        await install({ genesis: !!argv.g, enableRoa: !!argv.enableRoa, disableAutoGenerateKey: !!argv.NoGenerateKey});
+        await install({
+          genesis: !!argv.g,
+          enableRoa: !!argv.enableRoa,
+          disableAutoGenerateKey: !!argv.NoGenerateKey,
+        });
       } catch (err) {
         signale.error(`Fatal error: ${(err as Error).message}`);
         process.exit(1);
