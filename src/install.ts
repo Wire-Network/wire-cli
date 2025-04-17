@@ -13,6 +13,7 @@ import {
   replaceInFile,
   setContractUntilSuccess,
   parseKeyFile,
+  activateFeatures,
 } from "./helpers/utilities.helper";
 
 interface InstallOptions {
@@ -132,7 +133,7 @@ export async function install(options: InstallOptions) {
   );
 
   signale.log(`[INSTALL]: Handling System Contracts...`);
-  const SYSTEM_CONTRACTS_PATH = "/opt/wire-system-contracts";
+  const SYSTEM_CONTRACTS_PATH = process.env.WIRE_CLI_SYSTEM_CONTRACTS_DIR || "/opt/wire-system-contracts";
   fs.mkdirSync(SYSTEM_CONTRACTS_PATH, { recursive: true });
 
   if (fs.existsSync(SYSTEM_CONTRACTS_URL)) {
@@ -184,28 +185,49 @@ export async function install(options: InstallOptions) {
   );
   signale.log(`[INSTALL]: System contracts compiled successfully!`);
 
-  const WORK_DIR = "/opt/wire-network";
+  const WORK_DIR = process.env.WIRE_CLI_WORK_DIR || "/opt/wire-network";
+
   fs.mkdirSync(WORK_DIR, { recursive: true });
   const SECRETS_DIR = path.join(WORK_DIR, "secrets");
-  const SYSIO_KEY_FILE = path.join(SECRETS_DIR, "sysio_key.txt");
   fs.mkdirSync(SECRETS_DIR, { recursive: true });
+  const SYSIO_KEY_FILE = path.join(SECRETS_DIR, "sysio_key.txt");
 
-  const PROJECT_DIR = process.cwd();
-  copyRecursiveSync(
-    path.join(PROJECT_DIR, "blockproducer"),
-    path.join(WORK_DIR, "blockproducer")
-  );
-  copyRecursiveSync(
-    path.join(PROJECT_DIR, "chain-api"),
-    path.join(WORK_DIR, "chain-api")
-  );
+  const PKG_ROOT = path.resolve(__dirname, "..");
 
-  fs.mkdirSync(path.join(WORK_DIR, "blockproducer", "data"), {
-    recursive: true,
-  });
-  fs.mkdirSync(path.join(WORK_DIR, "chain-api", "data", "traces"), {
-    recursive: true,
-  });
+  const TEMPLATE_BP = path.join(PKG_ROOT, "blockproducer");
+  const TEMPLATE_API = path.join(PKG_ROOT, "chain-api");
+
+  // Blockproducer
+  const dstBp = path.join(WORK_DIR, "blockproducer");
+  signale.debug(
+    `[DEBUG]: copying blockproducer from ${TEMPLATE_BP} to ${dstBp}`
+  );
+  copyRecursiveSync(TEMPLATE_BP, dstBp);
+
+  // List copied files for visibility
+  if (fs.existsSync(dstBp)) {
+    const walk = (dir: string, prefix = ""): void => {
+      for (const name of fs.readdirSync(dir)) {
+        const full = path.join(dir, name);
+        const stat = fs.statSync(full);
+        signale.debug(`${prefix}${name}${stat.isDirectory() ? "/" : ""}`);
+        if (stat.isDirectory()) walk(full, prefix + "  ");
+      }
+    };
+
+    walk(dstBp);
+  } else {
+    signale.error(`[DEBUG]: Destination ${dstBp} does not exist!`);
+  }
+
+  // Chain‑API
+  const dstApi = path.join(WORK_DIR, "chain-api");
+  signale.debug(`[DEBUG]: copying chain-api from ${TEMPLATE_API} to ${dstApi}`);
+  copyRecursiveSync(TEMPLATE_API, dstApi);
+
+  // 3) Ensure data directories
+  fs.mkdirSync(path.join(dstBp, "data"), { recursive: true });
+  fs.mkdirSync(path.join(dstApi, "data", "traces"), { recursive: true });
 
   signale.log(`[Install]: Generating key pairs...`);
   const result = childProcess.spawnSync(
@@ -298,6 +320,7 @@ export async function install(options: InstallOptions) {
     [/<SIGNING_PRIV_KEY>/g, sysioPrivateKey],
     [/<SIGNING_PUB_KEY>/g, sysioPublicKey],
   ]);
+
   const genesisPath = path.join(
     WORK_DIR,
     "blockproducer",
@@ -325,7 +348,12 @@ export async function install(options: InstallOptions) {
     fs.writeFileSync(genesisPath, genesisData, { encoding: "utf8" });
   }
 
-  const bpLog = fs.openSync(bpLogPath, "a");
+  // Start blockproducer
+  console.log("[Install]: Starting blockproducer nodeop instance...");
+  const bpLog = fs.openSync(
+    path.join(WORK_DIR, "blockproducer", "data", "nodeop.log"),
+    "a"
+  );
   const bpProc = childProcess.spawn(
     "nodeop",
     [
@@ -349,15 +377,18 @@ export async function install(options: InstallOptions) {
     ],
     { detached: true, stdio: ["ignore", "ignore", bpLog] }
   );
-
   bpProc.on("error", err => {
     signale.fatal(`[ERROR]: Failed to start blockproducer: ${err.message}`);
   });
 
-  fs.writeFileSync(
-    path.join(WORK_DIR, "blockproducer", "config", "nodeop.pid"),
-    String(bpProc.pid)
-  );
+  // **Ensure config directory exists before writing PID**
+  const bpConfigDir = path.join(WORK_DIR, "blockproducer", "config");
+  fs.mkdirSync(bpConfigDir, { recursive: true });
+
+  // Write the PID file
+  fs.writeFileSync(path.join(bpConfigDir, "nodeop.pid"), String(bpProc.pid), {
+    encoding: "utf8",
+  });
   bpProc.unref();
 
   // Start chain-api
@@ -500,6 +531,7 @@ export async function install(options: InstallOptions) {
   await wait(2000);
 
   console.log("[Install]: Activating Protocol Features...");
+
   const featureHashes = [
     "c3a6138c5061cf291310887c0b5c71fcaffeab90d5deb50d3b9e687cead45071",
     "d528b9f6e9693f45ed277af93474fd473ce7d831dae2180cca35d907bd10cb40",
@@ -511,22 +543,35 @@ export async function install(options: InstallOptions) {
     "68dcaa34c0517d19666e6b33add67351d8c5f69e999ca1e37931bc410a297428",
     "e0fb64b1085cc5538970158d05a009c24e276fb94e1a0bf6a528b48fbc4ff526",
     "ef43112c6543b88db2283a2e077278c315ae2c84719a8b25f25cc88565fbea99",
-    "4a90c00d55454dc5b059055ca213579c6ea856967712a56017487886a4d4cc0f",
     "1a99a59d87e06e09ec5b028a9cbb7749b4a5ad8819004365d02dc4379a8b7241",
     "4e7bf348da00a945489b2a681749eb56f5de00b900014e137ddae39f48f69d67",
     "4fca8bd82bbd181e714e283f83e1b45d95ca5af40fb89ad3977b653c448f78c2",
     "299dcb6af692324b899b39f16d5a530a33062804e41f09dc97e9f156b4476707",
     "35c2186cc36f7bb4aeaf4487b36e57039ccf45a9136aa856a5d569ecca55ef2b",
     "5d47703100b35be53772d7caa1ef73e92397e0a876cc4c0af24a5f0353f199c9",
+    "7ab0d893e39c01d365ad7f66a2cb8fb02179135c5a0cf16c40645d972e47911d",
+    "2ce18707fa426ea351704ded644b679a87188967b1098cff60ab4a3f35da106e",
+    "6cefed65f1f6a04fc82e949b06c0df0e9f5370855353cd3b543e4b5d4ff3dabf",
+    "4a90c00d55454dc5b059055ca213579c6ea856967712a56017487886a4d4cc0f",
+    "71d53c85a760da4eaa6934b5a94eb93426713d2ff74d8fa598e245faa469e573",
   ];
 
-  for (const feat of featureHashes) {
-    run(
-      "clio",
-      ["push", "action", "sysio", "activate", `["${feat}"]`, "-p", "sysio"],
-      `Failed to activate feature: ${feat}`
-    );
+  try {
+    await activateFeatures(featureHashes);
+  } catch (error) {
+    signale.error("[INSTALL]: Failed to activate protocol features:", error);
+    process.exit(1);
   }
+
+  // for (const feat of featureHashes) {
+  //   run(
+  //     "clio",
+  //     ["push", "action", "sysio", "activate", `["${feat}"]`, "-p", "sysio"],
+  //     `Failed to activate feature: ${feat}`
+  //   );
+
+  //   wait(2000);
+  // }
 
   await wait(4000);
 
@@ -613,6 +658,8 @@ export async function install(options: InstallOptions) {
     "Failed to activateroa"
   );
 
+  await wait(2000);
+
   if (enableRoa) {
     signale.log(
       "[INSTALL]: Detected --enable-roa flag. Beginning ROA setup..."
@@ -681,15 +728,17 @@ async function doRoaSetup() {
     ["wallet", "import", "--private-key", privateDevKey],
     "[ERROR]: Failed to import nodedaddy privateKey"
   );
-  // regnodeowner
+
+  await wait(2000);
+  // forcereg
   run(
     "clio",
     [
       "push",
       "action",
       "sysio.roa",
-      "regnodeowner",
-      '{"owner": "nodedaddy", "tier": 1}',
+      "forcereg",
+      JSON.stringify({ owner: "nodedaddy", tier: 1 }),
       "-p",
       "sysio.roa@active",
     ],

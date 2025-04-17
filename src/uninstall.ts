@@ -6,15 +6,12 @@ import {
   confirmAction,
   run,
   verifyRunningAsRoot,
-} from "./helpers/utilities.helper"; 
-import { sign } from "crypto";
+} from "./helpers/utilities.helper";
 
 interface UninstallOptions {
   autoYes: boolean;
 }
-
-// Example: "WORK_DIR" or other variables can come from environment, or define them here
-const WORK_DIR = "/opt/wire-network";
+const WORK_DIR = process.env.WIRE_CLI_WORK_DIR || "/opt/wire-network";
 
 export async function uninstall(options: UninstallOptions) {
   const { autoYes } = options;
