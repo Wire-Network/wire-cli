@@ -150,7 +150,7 @@ export async function install(options: InstallOptions) {
       [
         "clone",
         "--branch",
-        "leap-5",
+        "master",
         "--single-branch",
         SYSTEM_CONTRACTS_URL,
         SYSTEM_CONTRACTS_PATH,
