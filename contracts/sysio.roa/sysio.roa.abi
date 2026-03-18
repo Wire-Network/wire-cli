@@ -1,0 +1,511 @@
+{
+    "____comment": "This file was generated with sysio-abigen. DO NOT EDIT ",
+    "version": "sysio::abi/1.2",
+    "types": [],
+    "structs": [
+        {
+            "name": "activateroa",
+            "base": "",
+            "fields": [
+                {
+                    "name": "total_sys",
+                    "type": "asset"
+                },
+                {
+                    "name": "bytes_per_unit",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "addpolicy",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "issuer",
+                    "type": "name"
+                },
+                {
+                    "name": "net_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "cpu_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "ram_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "time_block",
+                    "type": "uint32"
+                },
+                {
+                    "name": "network_gen",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "expandpolicy",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "issuer",
+                    "type": "name"
+                },
+                {
+                    "name": "net_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "cpu_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "ram_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "network_gen",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "extendpolicy",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "issuer",
+                    "type": "name"
+                },
+                {
+                    "name": "new_time_block",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "finalizereg",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "status",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "forcereg",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "tier",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "initnodereg",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "newuser",
+            "base": "",
+            "fields": [
+                {
+                    "name": "creator",
+                    "type": "name"
+                },
+                {
+                    "name": "nonce",
+                    "type": "name"
+                },
+                {
+                    "name": "pubkey",
+                    "type": "public_key"
+                }
+            ]
+        },
+        {
+            "name": "nodeownerreg",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "status",
+                    "type": "uint8"
+                },
+                {
+                    "name": "trx_id",
+                    "type": "checksum256"
+                },
+                {
+                    "name": "trx_signature",
+                    "type": "bytes"
+                },
+                {
+                    "name": "tier",
+                    "type": "uint8"
+                },
+                {
+                    "name": "block_num",
+                    "type": "uint128"
+                }
+            ]
+        },
+        {
+            "name": "nodeowners",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "tier",
+                    "type": "uint8"
+                },
+                {
+                    "name": "total_sys",
+                    "type": "asset"
+                },
+                {
+                    "name": "allocated_sys",
+                    "type": "asset"
+                },
+                {
+                    "name": "allocated_bw",
+                    "type": "asset"
+                },
+                {
+                    "name": "allocated_ram",
+                    "type": "asset"
+                },
+                {
+                    "name": "network_gen",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "policies",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "issuer",
+                    "type": "name"
+                },
+                {
+                    "name": "net_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "cpu_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "ram_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "bytes_per_unit",
+                    "type": "uint64"
+                },
+                {
+                    "name": "time_block",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "reducepolicy",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "issuer",
+                    "type": "name"
+                },
+                {
+                    "name": "net_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "cpu_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "ram_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "network_gen",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "reslimit",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "net_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "cpu_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "ram_bytes",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "roa_state",
+            "base": "",
+            "fields": [
+                {
+                    "name": "is_active",
+                    "type": "bool"
+                },
+                {
+                    "name": "total_sys",
+                    "type": "asset"
+                },
+                {
+                    "name": "bytes_per_unit",
+                    "type": "uint64"
+                },
+                {
+                    "name": "network_gen",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "setbyteprice",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bytes_per_unit",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "setpending",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "tier",
+                    "type": "uint8"
+                },
+                {
+                    "name": "trx_id",
+                    "type": "checksum256"
+                },
+                {
+                    "name": "block_num",
+                    "type": "uint128"
+                },
+                {
+                    "name": "sig",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "sponsor",
+            "base": "",
+            "fields": [
+                {
+                    "name": "nonce",
+                    "type": "name"
+                },
+                {
+                    "name": "username",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "sponsorcount",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "count",
+                    "type": "uint64"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "activateroa",
+            "type": "activateroa",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addpolicy",
+            "type": "addpolicy",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "expandpolicy",
+            "type": "expandpolicy",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "extendpolicy",
+            "type": "extendpolicy",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "finalizereg",
+            "type": "finalizereg",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "forcereg",
+            "type": "forcereg",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "initnodereg",
+            "type": "initnodereg",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "newuser",
+            "type": "newuser",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "reducepolicy",
+            "type": "reducepolicy",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setbyteprice",
+            "type": "setbyteprice",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setpending",
+            "type": "setpending",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "nodeownerreg",
+            "type": "nodeownerreg",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "nodeowners",
+            "type": "nodeowners",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "policies",
+            "type": "policies",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "reslimit",
+            "type": "reslimit",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "roastate",
+            "type": "roa_state",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "sponsorcount",
+            "type": "sponsorcount",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "sponsors",
+            "type": "sponsor",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [],
+    "variants": [],
+    "action_results": [
+        {
+            "name": "newuser",
+            "result_type": "name"
+        }
+    ]
+}

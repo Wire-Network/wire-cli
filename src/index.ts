@@ -30,14 +30,7 @@ const argv = yargs(hideBin(process.argv))
           type: "boolean",
           default: undefined,
         })
-        .option("enable-roa", {
-          alias: "r",
-          type: "boolean",
-          describe:
-            "Enable additional ROA activation and setup after starting up genesis node.",
-          default: false,
-        })
-        .option("--no-generate-key", {
+        .option("no-generate-key", {
           type: "boolean",
           describe:
             "Disable automatic generation of sysio.key (enabled by default) and instead take user input.",
@@ -55,8 +48,8 @@ const argv = yargs(hideBin(process.argv))
 
         await install({
           genesis: !!argv.g,
-          enableRoa: !!argv.enableRoa,
-          disableAutoGenerateKey: !!argv.NoGenerateKey,
+          
+          disableAutoGenerateKey: !!argv['no-generate-key'],
         });
       } catch (err) {
         signale.error(`Fatal error: ${(err as Error).message}`);

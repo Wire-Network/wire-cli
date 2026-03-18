@@ -199,7 +199,7 @@ export async function setContractUntilSuccess(
   let success = false;
 
   while (!success) {
-    console.log(`[Install]: Setting ${contractName} contract...`);
+    console.log(`[Install]: Setting ${contractName} contract from ${contractDir}...`);
     const r = childProcess.spawnSync("clio", [
       "set",
       "contract",
@@ -209,8 +209,12 @@ export async function setContractUntilSuccess(
       "sysio",
       "-x",
       "1000",
-    ]);
+    ], { encoding: "utf8" });
 
+    console.log("DEBUG stdout:", r.stdout);
+    console.log("DEBUG stderr:", r.stderr);
+    console.log("DEBUG status:", r.status);
+    
     if (r.status === 0) {
       success = true;
     } else {
@@ -219,7 +223,6 @@ export async function setContractUntilSuccess(
     }
   }
 }
-
 export async function confirmAction(message: string) {
   const answers = await inquirer.prompt([
     {
@@ -230,4 +233,19 @@ export async function confirmAction(message: string) {
     },
   ]);
   return answers.confirm;
+}
+
+/**
+ * Set a name for a key in the wallet
+ */
+export function setKeyName(publicKey: string, keyName: string, password: string) {
+  const result = childProcess.spawnSync("clio", [
+    "wallet", "set_key_name", "--password", password,
+    "--public-key", publicKey,
+    "--new-key-name", keyName,
+  ], { encoding: "utf8" });
+  
+  if (result.status !== 0) {
+    console.log(`[Warning]: Could not set key name for ${keyName}: ${result.stderr}`);
+  }
 }

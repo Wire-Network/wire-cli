@@ -52,8 +52,17 @@ export async function uninstall(options: UninstallOptions) {
       "Failed to stop blockproducer"
     );
     run("bash", [`${WORK_DIR}/chain-api/stop.sh`], "Failed to stop chain-api");
+    run("bash", [`${WORK_DIR}/bp-relay/stop.sh`], "Failed to stop bp-relay");
   } catch (err) {
     signale.warn("One or more stop scripts failed, continuing anyway...");
+  }
+
+  // Kill any remaining nodeop processes
+  try {
+    childProcess.spawnSync("pkill", ["-9", "-f", "nodeop"], { stdio: "ignore" });
+    signale.log("[Uninstall]: Killed any remaining nodeop processes.");
+  } catch (err) {
+    // Ignore pkill errors
   }
 
   // 3) Remove wire-core, wire-cdt packages
@@ -118,6 +127,7 @@ export async function uninstall(options: UninstallOptions) {
   if (removeWallet) {
     signale.log("[Uninstall]: Removing sysio-wallet...");
     safeRemove("/root/sysio-wallet");
+    safeRemove("/root/.config/wire");
   } else {
     signale.log("[Uninstall]: Skipping removal of sysio-wallet...");
   }
@@ -131,7 +141,7 @@ function safeRemove(path: string): void {
       const stats = fs.statSync(path);
 
       if (stats.isDirectory()) {
-        fs.rmdirSync(path, { recursive: true });
+        fs.rmSync(path, { recursive: true });
       } else {
         fs.unlinkSync(path);
       }
