@@ -14,6 +14,34 @@
             ]
         },
         {
+            "name": "claimrwd",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "principal_symbol",
+                    "type": "symbol"
+                }
+            ]
+        },
+        {
+            "name": "cleartable",
+            "base": "",
+            "fields": [
+                {
+                    "name": "table_name",
+                    "type": "name"
+                },
+                {
+                    "name": "scope",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
             "name": "close",
             "base": "",
             "fields": [
@@ -37,6 +65,20 @@
                 },
                 {
                     "name": "maximum_supply",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "creditrwd",
+            "base": "",
+            "fields": [
+                {
+                    "name": "principal_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "quantity",
                     "type": "asset"
                 }
             ]
@@ -110,6 +152,100 @@
             ]
         },
         {
+            "name": "reward_account_row",
+            "base": "",
+            "fields": [
+                {
+                    "name": "principal_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "accrued_scaled",
+                    "type": "int128"
+                },
+                {
+                    "name": "reward_debt",
+                    "type": "int128"
+                }
+            ]
+        },
+        {
+            "name": "reward_exclusion_row",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "reward_lane_row",
+            "base": "",
+            "fields": [
+                {
+                    "name": "principal_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "reward_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "distributor",
+                    "type": "name"
+                },
+                {
+                    "name": "reward_index",
+                    "type": "int128"
+                },
+                {
+                    "name": "pending_scaled",
+                    "type": "int128"
+                },
+                {
+                    "name": "eligible_supply",
+                    "type": "int64"
+                }
+            ]
+        },
+        {
+            "name": "setrwdexcl",
+            "base": "",
+            "fields": [
+                {
+                    "name": "principal_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "excluded",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "setrwrdcfg",
+            "base": "",
+            "fields": [
+                {
+                    "name": "principal_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "reward_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "distributor",
+                    "type": "name"
+                }
+            ]
+        },
+        {
             "name": "transfer",
             "base": "",
             "fields": [
@@ -134,6 +270,16 @@
     ],
     "actions": [
         {
+            "name": "claimrwd",
+            "type": "claimrwd",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "cleartable",
+            "type": "cleartable",
+            "ricardian_contract": ""
+        },
+        {
             "name": "close",
             "type": "close",
             "ricardian_contract": ""
@@ -141,6 +287,11 @@
         {
             "name": "create",
             "type": "create",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "creditrwd",
+            "type": "creditrwd",
             "ricardian_contract": ""
         },
         {
@@ -159,6 +310,16 @@
             "ricardian_contract": ""
         },
         {
+            "name": "setrwdexcl",
+            "type": "setrwdexcl",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setrwrdcfg",
+            "type": "setrwrdcfg",
+            "ricardian_contract": ""
+        },
+        {
             "name": "transfer",
             "type": "transfer",
             "ricardian_contract": ""
@@ -169,15 +330,36 @@
             "name": "accounts",
             "type": "account",
             "index_type": "i64",
-            "key_names": [],
-            "key_types": []
+            "key_names": ["table_name","scope","primary_key"],
+            "key_types": ["name","name","uint64"]
+        },
+        {
+            "name": "rewaccts",
+            "type": "reward_account_row",
+            "index_type": "i64",
+            "key_names": ["table_name","scope","primary_key"],
+            "key_types": ["name","name","uint64"]
+        },
+        {
+            "name": "rewexcls",
+            "type": "reward_exclusion_row",
+            "index_type": "i64",
+            "key_names": ["table_name","scope","primary_key"],
+            "key_types": ["name","name","uint64"]
+        },
+        {
+            "name": "rewlanes",
+            "type": "reward_lane_row",
+            "index_type": "i64",
+            "key_names": ["table_name","scope","primary_key"],
+            "key_types": ["name","name","uint64"]
         },
         {
             "name": "stat",
             "type": "currency_stats",
             "index_type": "i64",
-            "key_names": [],
-            "key_types": []
+            "key_names": ["table_name","scope","primary_key"],
+            "key_types": ["name","name","uint64"]
         }
     ],
     "ricardian_clauses": [],
