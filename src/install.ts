@@ -111,6 +111,7 @@ export async function install(options: InstallOptions) {
     ["install", "-y", "--no-upgrade", WIRE_CORE_DEB],
     "[ERROR]: Failed to install Wire System Core"
   );
+  symlinkBinaries(WIRE_CORE_DEB, ["nodeop", "clio", "kiod", "sys-util"]);
 
   if (!genesis) {
     signale.log(`[INSTALL]: Genesis mode off not supported at this time.`);
@@ -123,6 +124,7 @@ export async function install(options: InstallOptions) {
     ["install", "-y", "--no-upgrade", WIRE_CDT_DEB],
     "[ERROR]: Failed to install Wire CDT"
   );
+  symlinkBinaries(WIRE_CDT_DEB, ["cdt-cpp"]);
 
   // Use bundled contracts from package
   const PKG_ROOT = path.resolve(__dirname, "..");
@@ -516,6 +518,7 @@ export async function install(options: InstallOptions) {
     "sysio.saving",
     "sysio.acct",
     "sysio.roa",
+    "sysio.authex",
   ];
 
   for (const account of systemAccounts) {
@@ -625,6 +628,30 @@ export async function install(options: InstallOptions) {
   );
   await wait(3000);
 
+  console.log("[Install]: Deploying sysio.authex contract...");
+  run(
+    "clio",
+    ["set", "contract", "sysio.authex", `${CONTRACTS_PATH}/sysio.authex/`],
+    "Failed to deploy sysio.authex"
+  );
+  await wait(2000);
+
+  console.log("[Install]: Setting sysio.authex to privileged...");
+  run(
+    "clio",
+    [
+      "push",
+      "action",
+      "sysio",
+      "setpriv",
+      '["sysio.authex", 1]',
+      "-p",
+      "sysio@active",
+    ],
+    "Failed to setpriv sysio.authex"
+  );
+  await wait(3000);
+
   console.log(`[Install]: Token symbol set to ${SYMBOL}`);
   console.log("[Install]: Creating system token...");
   run(
@@ -729,6 +756,73 @@ export async function install(options: InstallOptions) {
   } catch {}
 
   signale.info("[Install]: Genesis chain setup complete!");
+}
+
+function symlinkBinaries(debPath: string, names: string[]): void {
+  // Get the installed package name from the deb file
+  const pkgResult = childProcess.spawnSync(
+    "dpkg-deb",
+    ["--field", debPath, "Package"],
+    { encoding: "utf8" }
+  );
+  const pkgName = pkgResult.stdout.trim();
+
+  if (!pkgName) {
+    signale.warn(
+      `[INSTALL]: Could not determine package name from ${debPath}, skipping symlinks`
+    );
+    return;
+  }
+
+  // List all files installed by the package
+  const listResult = childProcess.spawnSync("dpkg", ["-L", pkgName], {
+    encoding: "utf8",
+  });
+
+  if (listResult.status !== 0) {
+    signale.warn(`[INSTALL]: dpkg -L ${pkgName} failed, skipping symlinks`);
+    return;
+  }
+
+  const installedFiles = listResult.stdout.split("\n").filter(Boolean);
+
+  for (const name of names) {
+    const already = childProcess.spawnSync("which", [name], {
+      encoding: "utf8",
+    });
+
+    if (already.status === 0) {
+      signale.success(
+        `[INSTALL]: ${name} already in PATH at ${already.stdout.trim()}`
+      );
+
+      continue;
+    }
+
+    // Find the binary in the installed file list (exact basename match)
+    const src = installedFiles.find(
+      f => path.basename(f) === name && fs.existsSync(f)
+    );
+
+    if (!src) {
+      signale.error(
+        `[INSTALL]: ${name} not found in files installed by ${pkgName}`
+      );
+      process.exit(1);
+    }
+
+    const dest = `/usr/local/bin/${name}`;
+
+    try {
+      if (fs.existsSync(dest)) fs.unlinkSync(dest);
+
+      fs.symlinkSync(src, dest);
+      signale.success(`[INSTALL]: Symlinked ${dest} -> ${src}`);
+    } catch (err) {
+      signale.error(`[INSTALL]: Failed to symlink ${name}: ${err}`);
+      process.exit(1);
+    }
+  }
 }
 
 /**
