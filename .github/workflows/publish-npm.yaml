@@ -59,6 +59,21 @@ jobs:
       - name: Clean and Build
         run: npm run build
 
+      - name: Verify package contents
+        run: |
+          if [ ! -f lib/index.js ]; then
+            echo "Error: lib/index.js missing after build. Refusing to publish."
+            exit 1
+          fi
+
+          # Ensure the tarball includes the compiled entrypoint and excludes TypeScript sources
+          PACK_LIST=$(npm pack --dry-run 2>&1)
+          echo "$PACK_LIST"
+          echo "$PACK_LIST" | grep -q 'lib/index.js' || { echo "Error: lib/index.js not in package tarball."; exit 1; }
+          echo "$PACK_LIST" | grep -q 'src/' && { echo "Error: TypeScript src/ must not be published."; exit 1; } || true
+          echo "$PACK_LIST" | grep -q 'contracts/' || { echo "Error: contracts/ missing from package tarball."; exit 1; }
+          echo "Package contents look correct ✅"
+
       - name: Publish Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
