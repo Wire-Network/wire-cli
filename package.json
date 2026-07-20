@@ -6,11 +6,19 @@
   "bin": {
     "wire-cli": "lib/index.js"
   },
+  "files": [
+    "lib",
+    "contracts",
+    "blockproducer",
+    "chain-api",
+    "bp-relay"
+  ],
   "scripts": {
     "test": "jest",
-    "start": "tsc && node bin/index.js",
+    "start": "tsc && node lib/index.js",
     "build": "tsc",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [],
   "author": "Svetla Syrimis",
